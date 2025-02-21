@@ -30,6 +30,10 @@ void putchar(char ch) {
     sbi_call(ch, 0, 0, 0, 0, 0, 0, 1 /* Console Putchar */);
 }
 
+struct sbiret getchar(void) {
+    return sbi_call(0, 0, 0, 0, 0, 0, 0, 2 /* Console Getchar */);
+}
+
 void *memset(void *buf, char c, size_t n) {
     uint8_t *p = (uint8_t *) buf;
     while (n--)
@@ -41,8 +45,13 @@ void kernel_main(void) {
     printf("\n\nHello %s\n", "World!");
     printf("1 + 2 = %d, %x\n", 1 + 2, 0x1234abcd);
 
+    struct sbiret input;
+
     for (;;) {
-        __asm__ __volatile__("wfi");
+        input = getchar();
+        if (input.error == 0) {
+            putchar((char)(input.value));
+        }
     }
 }
 
