@@ -30,8 +30,8 @@ void putchar(char ch) {
     sbi_call(ch, 0, 0, 0, 0, 0, 0, 1 /* Console Putchar */);
 }
 
-struct sbiret getchar(void) {
-    return sbi_call(0, 0, 0, 0, 0, 0, 0, 2 /* Console Getchar */);
+int getchar(void) {
+    return (int) sbi_call(0, 0, 0, 0, 0, 0, 0, 2 /* Console Getchar */).error;
 }
 
 void *memset(void *buf, char c, size_t n) {
@@ -42,16 +42,68 @@ void *memset(void *buf, char c, size_t n) {
 }
 
 void kernel_main(void) {
-    printf("\n\nHello %s\n", "World!");
-    printf("1 + 2 = %d, %x\n", 1 + 2, 0x1234abcd);
+    printf("\n\n▓█████▄  ███▄    █  ▄▄▄▄   \n▒██▀ ██▌ ██ ▀█   █ ▓█████▄ \n░██   █▌▓██  ▀█ ██▒▒██▒ ▄██\n░▓█▄   ▌▓██▒  ▐▌██▒▒██░█▀  \n░▒████▓ ▒██░   ▓██░░▓█  ▀█▓\n ▒▒▓  ▒ ░ ▒░   ▒ ▒ ░▒▓███▀▒\n ░ ▒  ▒ ░ ░░   ░ ▒░▒░▒   ░ \n ░ ░  ░    ░   ░ ░  ░    ░ \n   ░             ░  ░      \n ░                       ░ \n\n\n");
+    printf("Welcome to DnB!\n\n");
+    printf("Choose action:\n");
+    printf("h. Get help\n");
+    printf("1. Get SBI implementation version\n");
+    printf("2. Hart get status\n");
+    printf("3. Hart stop\n");
+    printf("4. System Shutdown\n");
 
-    struct sbiret input;
-
+    int input;
     for (;;) {
-        input = getchar();
-        if (input.error == 0) {
-            putchar((char)(input.value));
+        printf("$ ");
+        while ((input = getchar()) < 0) {};
+        putchar(input);
+        putchar('\n');
+
+        if (input == 'h') {
+            printf("\nChoose action:\n");
+            printf("h. Get help\n");
+            printf("1. Get SBI implementation version\n");
+            printf("2. Hart get status\n");
+            printf("3. Hart stop\n");
+            printf("4. System Shutdown");
+        } else if (input == '1') {
+            struct sbiret result = sbi_call(0, 0, 0, 0, 0, 0, 2, 0x10 /* Get SBI implementation version */);
+            int major = (result.value >> 16) & 0xFFFF;
+            int minor = result.value & 0xFFFF;
+            printf("SBI implementation version: %d.%d", major, minor);
+        } else if (input == '2') {
+            printf("Choose hart ID:\n");
+            printf("  > ");
+            while ((input = getchar()) < 0) {};
+            putchar(input);
+            input -= 48;
+            struct sbiret result = sbi_call(input, 0, 0, 0, 0, 0, 2, 0x48534D /* Hart get status */);
+            if (result.error < 0) {
+                printf("\nERROR: The given hartid is not valid");
+            } else {
+                printf("\nHart %d status: ", input);
+                switch (result.value) {
+                    case 0: { printf("STARTED"); break; }
+                    case 1: { printf("STOPPED"); break; }
+                    case 2: { printf("START_PENDING"); break; }
+                    case 3: { printf("STOP_PENDING"); break; }
+                    case 4: { printf("SUSPENDED"); break; }
+                    case 5: { printf("SUSPEND_PENDING"); break; }
+                    case 6: { printf("RESUME_PENDING"); break; }
+                }
+            }
+        } else if (input == '3') {
+            printf("Trying to stop execution of the current hart...\n");
+            struct sbiret result = sbi_call(input, 0, 0, 0, 0, 0, 1, 0x48534D /* Hart stop */);
+            if (result.error < 0) {
+                printf("\nERROR: Failed to stop execution of the current hart");
+            }
+        } else if (input == '4') {
+            printf("Putting all the harts to shutdown state...\n");
+            sbi_call(input, 0, 0, 0, 0, 0, 0, 0x08 /* System Shutdown */);
+        } else {
+            printf("ERROR: Invalid input");
         }
+        printf("\n\n");
     }
 }
 
